@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 
 	"github.com/wu/agentsstore/internal/store"
@@ -53,7 +54,7 @@ func (a *Aggregator) Refresh(sourceNames []string) error {
 	if err != nil {
 		return err
 	}
-	return a.store.WriteFile("aggregated", "marketplace.json", out)
+	return os.WriteFile(filepath.Join(a.store.AggregatedDir(), "marketplace.json"), out, 0o644)
 }
 
 func rewriteURL(baseURL, srcName, pluginSrc string) string {

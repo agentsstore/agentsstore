@@ -41,7 +41,7 @@ func TestAggregate_Merge(t *testing.T) {
 	agg := New(s, "http://example.test")
 	require.NoError(t, agg.Refresh([]string{"a", "b"}))
 
-	got, err := s.ReadFile("aggregated", "marketplace.json")
+	got, err := os.ReadFile(filepath.Join(s.AggregatedDir(), "marketplace.json"))
 	require.NoError(t, err)
 	var m map[string]any
 	require.NoError(t, json.Unmarshal(got, &m))
