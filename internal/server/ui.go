@@ -28,7 +28,7 @@ func (u *UI) Index(c *gin.Context) {
 	}
 	type src struct {
 		Name, Type, URL, Ref, LastError, LastRefresh string
-		Enabled                                       bool
+		Enabled                                      bool
 	}
 	cfg, _ := u.Server.Manager.Snapshot()
 	byName := map[string]config.Source{}
