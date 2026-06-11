@@ -93,3 +93,52 @@ func TestAdmin_DuplicateAdd(t *testing.T) {
 	r.ServeHTTP(w, req)
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
+
+func TestAdmin_AddWithEnabledFalse(t *testing.T) {
+	r, _ := newAdminTestServer(t)
+
+	body, _ := json.Marshal(map[string]any{
+		"name": "team", "type": "http", "url": "http://a", "enabled": false,
+	})
+	req := httptest.NewRequest(http.MethodPost, "/admin/api/sources", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusCreated, w.Code)
+
+	// GET should show enabled=false (not silently flipped to true)
+	req = httptest.NewRequest(http.MethodGet, "/admin/api/sources", nil)
+	w = httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.Contains(t, w.Body.String(), `"enabled":false`)
+}
+
+func TestAdmin_UpdateWithEnabledFalse(t *testing.T) {
+	r, _ := newAdminTestServer(t)
+
+	// Add as enabled
+	addBody, _ := json.Marshal(map[string]any{
+		"name": "team", "type": "http", "url": "http://a", "enabled": true,
+	})
+	req := httptest.NewRequest(http.MethodPost, "/admin/api/sources", bytes.NewReader(addBody))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	require.Equal(t, http.StatusCreated, w.Code)
+
+	// Update with enabled=false
+	updBody, _ := json.Marshal(map[string]any{
+		"name": "team", "type": "http", "url": "http://a", "enabled": false,
+	})
+	req = httptest.NewRequest(http.MethodPut, "/admin/api/sources/team", bytes.NewReader(updBody))
+	req.Header.Set("Content-Type", "application/json")
+	w = httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusOK, w.Code, w.Body.String())
+
+	// GET should still show enabled=false
+	req = httptest.NewRequest(http.MethodGet, "/admin/api/sources", nil)
+	w = httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.Contains(t, w.Body.String(), `"enabled":false`)
+}

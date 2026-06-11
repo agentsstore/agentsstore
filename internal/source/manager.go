@@ -87,24 +87,33 @@ func (m *Manager) Delete(name string) error {
 	if err != nil {
 		return err
 	}
-	out := cfg.Sources[:0]
 	found := false
-	for _, existing := range cfg.Sources {
-		if existing.Name == name {
+	for _, s := range cfg.Sources {
+		if s.Name == name {
 			found = true
-			continue
+			break
 		}
-		out = append(out, existing)
 	}
 	if !found {
 		return fmt.Errorf("source %q not found", name)
+	}
+	// Remove the local mirror FIRST; if it fails, config and state stay in sync.
+	if err := m.store.RemoveSource(name); err != nil {
+		return fmt.Errorf("remove local mirror: %w", err)
+	}
+	// Now filter out the source from the config.
+	out := make([]config.Source, 0, len(cfg.Sources)-1)
+	for _, s := range cfg.Sources {
+		if s.Name != name {
+			out = append(out, s)
+		}
 	}
 	cfg.Sources = out
 	if err := cfg.Save(m.cfgPath); err != nil {
 		return err
 	}
 	delete(m.states, name)
-	return m.store.RemoveSource(name)
+	return nil
 }
 
 func (m *Manager) List() ([]State, error) {
