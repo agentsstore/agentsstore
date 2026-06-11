@@ -2,6 +2,7 @@ package source
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 
@@ -25,27 +26,47 @@ func (g *GitSource) Type() string { return "git" }
 
 func (g *GitSource) Fetch(ctx context.Context, destDir string) error {
 	if err := os.MkdirAll(destDir, 0o755); err != nil {
-		return err
+		return fmt.Errorf("mkdir dest: %w", err)
 	}
 	opts := &git.CloneOptions{
 		URL:        g.spec.URL,
 		RemoteName: "origin",
+		Depth:      1,
 	}
 	if g.spec.Ref != "" {
 		opts.ReferenceName = refFromString(g.spec.Ref)
 	}
-	opts.Depth = 1
 
 	if _, err := git.PlainCloneContext(ctx, destDir, false, opts); err != nil {
-		// If already cloned (Pull), try a fetch + checkout.
+		// On any error, wipe destDir so a retry starts clean.
+		_ = os.RemoveAll(destDir)
+		// ErrRepositoryAlreadyExists means the directory has a repo already;
+		// try to fetch + checkout the requested ref.
+		if !errors.Is(err, git.ErrRepositoryAlreadyExists) {
+			return fmt.Errorf("clone %s: %w", g.spec.URL, err)
+		}
 		repo, perr := git.PlainOpen(destDir)
 		if perr != nil {
-			return fmt.Errorf("clone failed (%v) and open failed (%v)", err, perr)
+			return fmt.Errorf("open existing repo: %w", perr)
 		}
 		if g.spec.Ref != "" {
-			_ = repo.FetchContext(ctx, &git.FetchOptions{RemoteName: "origin", Depth: 1, Tags: git.AllTags})
-			w, _ := repo.Worktree()
-			_ = w.Checkout(&git.CheckoutOptions{Branch: refFromString(g.spec.Ref), Force: true})
+			if err := repo.FetchContext(ctx, &git.FetchOptions{
+				RemoteName: "origin",
+				Depth:      1,
+				Tags:       git.AllTags,
+			}); err != nil {
+				return fmt.Errorf("fetch: %w", err)
+			}
+			w, werr := repo.Worktree()
+			if werr != nil {
+				return fmt.Errorf("worktree: %w", werr)
+			}
+			if err := w.Checkout(&git.CheckoutOptions{
+				Branch: refFromString(g.spec.Ref),
+				Force:  true,
+			}); err != nil {
+				return fmt.Errorf("checkout: %w", err)
+			}
 		}
 	}
 	return nil
