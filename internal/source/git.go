@@ -38,15 +38,15 @@ func (g *GitSource) Fetch(ctx context.Context, destDir string) error {
 	}
 
 	if _, err := git.PlainCloneContext(ctx, destDir, false, opts); err != nil {
-		// On any error, wipe destDir so a retry starts clean.
-		_ = os.RemoveAll(destDir)
-		// ErrRepositoryAlreadyExists means the directory has a repo already;
-		// try to fetch + checkout the requested ref.
 		if !errors.Is(err, git.ErrRepositoryAlreadyExists) {
+			// Wipe any partial state so a retry starts clean.
+			_ = os.RemoveAll(destDir)
 			return fmt.Errorf("clone %s: %w", g.spec.URL, err)
 		}
+		// Repo already exists — fall through to fetch + checkout to refresh.
 		repo, perr := git.PlainOpen(destDir)
 		if perr != nil {
+			_ = os.RemoveAll(destDir)
 			return fmt.Errorf("open existing repo: %w", perr)
 		}
 		if g.spec.Ref != "" {
@@ -54,7 +54,7 @@ func (g *GitSource) Fetch(ctx context.Context, destDir string) error {
 				RemoteName: "origin",
 				Depth:      1,
 				Tags:       git.AllTags,
-			}); err != nil {
+			}); err != nil && !errors.Is(err, git.NoErrAlreadyUpToDate) {
 				return fmt.Errorf("fetch: %w", err)
 			}
 			w, werr := repo.Worktree()

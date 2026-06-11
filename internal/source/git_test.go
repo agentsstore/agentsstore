@@ -80,6 +80,28 @@ func TestRefFromString(t *testing.T) {
 	}
 }
 
+func TestGitSource_Fetch_Refresh(t *testing.T) {
+	url := initBareRepo(t)
+	dest := t.TempDir()
+
+	spec := config.Source{Name: "g", Type: "git", URL: url, Ref: "main", Enabled: true}
+	src, err := NewGitSource(spec)
+	require.NoError(t, err)
+
+	// First fetch: clones fresh
+	require.NoError(t, src.Fetch(context.Background(), dest))
+	data1, err := os.ReadFile(filepath.Join(dest, "marketplace.json"))
+	require.NoError(t, err)
+	require.Contains(t, string(data1), "p1")
+
+	// Second fetch: should hit the fallback path (ErrRepositoryAlreadyExists)
+	// and successfully refresh without error.
+	require.NoError(t, src.Fetch(context.Background(), dest))
+	data2, err := os.ReadFile(filepath.Join(dest, "marketplace.json"))
+	require.NoError(t, err)
+	require.Contains(t, string(data2), "p1")
+}
+
 func TestGitSource_Fetch_Tag(t *testing.T) {
 	// Verify that refFromString normalizes a tag input to refs/tags/...
 	// correctly. We also exercise the helper indirectly through the constructor
