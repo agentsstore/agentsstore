@@ -178,7 +178,8 @@ func (h *httpTestSource) Fetch(ctx context.Context, destDir string) error {
 	if err := st.EnsureSourceDir(h.spec.Name); err != nil {
 		return err
 	}
-	return st.WriteFile(h.spec.Name, "marketplace.json", body)
+	// Claude Code convention: marketplace.json lives under .claude-plugin/.
+	return st.WriteFile(h.spec.Name, source.MarketplaceManifestPath, body)
 }
 
 func newAdminTestServerWithFake(t *testing.T) (*gin.Engine, *source.Manager) {

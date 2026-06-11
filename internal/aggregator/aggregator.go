@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/wu/agentsstore/internal/source"
 	"github.com/wu/agentsstore/internal/store"
 )
 
@@ -43,23 +44,23 @@ func (a *Aggregator) Refresh(sourceNames []string, baseURL string) error {
 	}
 	merged := manifest{Plugins: []plugin{}}
 	for _, name := range sourceNames {
-		data, err := a.store.ReadFile(name, "marketplace.json")
+		data, err := a.store.ReadFile(name, source.MarketplaceManifestPath)
 		if err != nil {
 			if os.IsNotExist(err) {
 				return fmt.Errorf(
-					"source %s: no marketplace.json at the repo root\n"+
-						"  the Claude Code marketplace format requires a marketplace.json file\n"+
-						"  at the root of the source repository. Common causes:\n"+
+					"source %s: no %s at the source root\n"+
+						"  the Claude Code marketplace format requires %s\n"+
+						"  to be present in the source repository. Common causes:\n"+
 						"    - the repository is not a marketplace (e.g., it is a plugin, skill, or library)\n"+
 						"    - the configured ref points to a branch/tag that lacks the file\n"+
 						"    - the clone did not complete (check the source's status in the admin UI)",
-					name)
+					name, source.MarketplaceManifestPath, source.MarketplaceManifestPath)
 			}
-			return fmt.Errorf("source %s: read marketplace.json: %w", name, err)
+			return fmt.Errorf("source %s: read %s: %w", name, source.MarketplaceManifestPath, err)
 		}
 		var m manifest
 		if err := json.Unmarshal(data, &m); err != nil {
-			return fmt.Errorf("source %s: parse marketplace.json (not valid JSON?): %w", name, err)
+			return fmt.Errorf("source %s: parse %s (not valid JSON?): %w", name, source.MarketplaceManifestPath, err)
 		}
 		for _, p := range m.Plugins {
 			p.Source = rewriteURL(effective, name, p.Source)

@@ -54,9 +54,22 @@ sources:
 ## Source types
 
 - `git`: shallow-clones the repository on refresh. Reads
-  `marketplace.json` from the repo root. Use `ref` to pin a branch/tag.
-- `http`: fetches `marketplace.json` from the URL, then downloads each
-  plugin's files referenced by the `source` field.
+  `.claude-plugin/marketplace.json` from the cloned tree (the
+  Claude Code convention). Use `ref` to pin a branch/tag.
+- `http`: takes a **base directory URL** and fetches
+  `<base>/.claude-plugin/marketplace.json` plus each plugin's
+  files referenced by the `source` field. The base URL is the
+  repository/directory root, not the manifest file itself.
+
+## Source format requirement
+
+Each source must be a Claude Code marketplace: a repository or
+directory containing `.claude-plugin/marketplace.json` at its root.
+That manifest lists the available plugins. A repo that is itself a
+plugin (e.g. has only `.claude-plugin/plugin.json`) is **not** a
+marketplace and cannot be aggregated — see
+[`obra/superpowers`](https://github.com/obra/superpowers) for an
+example of a non-marketplace repo.
 
 ## Admin API
 

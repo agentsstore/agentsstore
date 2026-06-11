@@ -25,13 +25,15 @@ func TestAggregate_Merge(t *testing.T) {
 	require.NoError(t, s.EnsureSourceDir("a"))
 	require.NoError(t, s.EnsureSourceDir("b"))
 
-	writeJSON(t, filepath.Join(dir, "sources/a/marketplace.json"), map[string]any{
+	// Per Claude Code convention, the marketplace manifest lives at
+	// .claude-plugin/marketplace.json inside each source.
+	writeJSON(t, filepath.Join(dir, "sources/a/.claude-plugin/marketplace.json"), map[string]any{
 		"name": "a",
 		"plugins": []map[string]any{
 			{"name": "p1", "source": "./plugins/p1"},
 		},
 	})
-	writeJSON(t, filepath.Join(dir, "sources/b/marketplace.json"), map[string]any{
+	writeJSON(t, filepath.Join(dir, "sources/b/.claude-plugin/marketplace.json"), map[string]any{
 		"name": "b",
 		"plugins": []map[string]any{
 			{"name": "p2", "source": "./plugins/p2"},
@@ -77,7 +79,7 @@ func TestAggregate_RefreshOverrideBaseURL(t *testing.T) {
 	s := store.New(dir)
 	require.NoError(t, s.EnsureSourceDir("a"))
 
-	writeJSON(t, filepath.Join(dir, "sources/a/marketplace.json"), map[string]any{
+	writeJSON(t, filepath.Join(dir, "sources/a/.claude-plugin/marketplace.json"), map[string]any{
 		"name": "a",
 		"plugins": []map[string]any{
 			{"name": "p1", "source": "./plugins/p1"},

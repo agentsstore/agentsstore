@@ -78,22 +78,30 @@ func (h *HTTPSource) Fetch(ctx context.Context, destDir string) error {
 // fetchInto performs all writes into the provided directory. Any error leaves
 // the directory in a half-written state; the caller is responsible for removing
 // it (or replacing it via atomic rename) on failure.
+//
+// The spec's URL is the BASE directory URL of the marketplace; the manifest
+// is always fetched from <base>/.claude-plugin/marketplace.json. Plugin
+// sources are resolved relative to <base>/.claude-plugin/.
 func (h *HTTPSource) fetchInto(ctx context.Context, destDir string) error {
 	base, err := url.Parse(h.spec.URL)
 	if err != nil {
 		return fmt.Errorf("invalid url: %w", err)
 	}
-	// Strip the file portion of the marketplace URL to get the base directory.
-	baseDir, _ := path.Split(base.Path)
-	// The directory that all plugin sources must remain under. Used for
-	// traversal containment checks.
-	marketplaceDir := strings.TrimSuffix(h.spec.URL, path.Base(h.spec.URL))
+	// Resolve <base>/.claude-plugin/ — the manifest lives at <baseDir>/marketplace.json
+	// and plugin sources resolve relative to <baseDir>.
+	baseDir := strings.TrimRight(h.spec.URL, "/") + "/.claude-plugin/"
+	manifestURL := baseDir + "marketplace.json"
+	// Containment check: every plugin source must stay under <baseDir>.
+	marketplaceDir := baseDir
 
-	data, err := h.fetch(ctx, h.spec.URL)
+	data, err := h.fetch(ctx, manifestURL)
 	if err != nil {
-		return fmt.Errorf("fetch marketplace.json: %w", err)
+		return fmt.Errorf("fetch %s: %w", MarketplaceManifestPath, err)
 	}
-	if err := os.WriteFile(filepath.Join(destDir, "marketplace.json"), data, 0o644); err != nil {
+	// Write the manifest to destDir/.claude-plugin/marketplace.json so the
+	// Aggregator can find it at the well-known path.
+	manifestRel := MarketplaceManifestPath
+	if err := h.writeFile(destDir, manifestRel, data); err != nil {
 		return err
 	}
 
@@ -116,13 +124,13 @@ func (h *HTTPSource) fetchInto(ctx context.Context, destDir string) error {
 		if ref.IsAbs() {
 			resolved = *ref
 		} else {
-			// Only append /plugin.json if the source doesn't already end in it
-			// (or another known manifest filename).
+			// Resolve relative to <base>/.claude-plugin/, then optionally
+			// append /plugin.json if the source doesn't already end in one.
 			cleanPath := strings.TrimSuffix(ref.Path, "/")
 			if !strings.HasSuffix(cleanPath, ".json") {
 				cleanPath = path.Join(cleanPath, "plugin.json")
 			}
-			resolved.Path = path.Join(baseDir, cleanPath)
+			resolved.Path = path.Join("/.claude-plugin/", cleanPath)
 		}
 
 		// Ensure the resolved plugin URL is under the marketplace URL's directory.
@@ -138,15 +146,20 @@ func (h *HTTPSource) fetchInto(ctx context.Context, destDir string) error {
 		if relPath == "" {
 			continue
 		}
-		full := filepath.Join(destDir, relPath)
-		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
-			return err
-		}
-		if err := os.WriteFile(full, body, 0o644); err != nil {
+		if err := h.writeFile(destDir, relPath, body); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// writeFile writes data to destDir/rel, creating any missing parent directories.
+func (h *HTTPSource) writeFile(destDir, rel string, data []byte) error {
+	full := filepath.Join(destDir, rel)
+	if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(full, data, 0o644)
 }
 
 func (h *HTTPSource) fetch(ctx context.Context, u string) ([]byte, error) {

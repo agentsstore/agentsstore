@@ -16,17 +16,20 @@ import (
 	"github.com/wu/agentsstore/internal/config"
 )
 
+// startUpstream serves a Claude Code marketplace at the well-known path
+// /.claude-plugin/marketplace.json. The handler also mirrors any plugin
+// file referenced from the manifest.
 func startUpstream(t *testing.T) *httptest.Server {
 	t.Helper()
 	mux := http.NewServeMux()
-	mux.HandleFunc("/marketplace.json", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/.claude-plugin/marketplace.json", func(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"plugins": []map[string]any{
 				{"name": "p1", "source": "./plugins/p1"},
 			},
 		})
 	})
-	mux.HandleFunc("/plugins/p1/plugin.json", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/.claude-plugin/plugins/p1/plugin.json", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`{"name":"p1"}`))
 	})
 	return httptest.NewServer(mux)
@@ -36,20 +39,22 @@ func TestHTTPSource_Fetch(t *testing.T) {
 	up := startUpstream(t)
 	defer up.Close()
 
-	spec := config.Source{Name: "h", Type: "http", URL: up.URL + "/marketplace.json", Enabled: true}
+	// The source URL is the base directory; the fetcher appends the
+	// well-known .claude-plugin/marketplace.json path itself.
+	spec := config.Source{Name: "h", Type: "http", URL: up.URL + "/", Enabled: true}
 	src, err := NewHTTPSource(spec)
 	require.NoError(t, err)
 
 	dest := t.TempDir()
 	require.NoError(t, src.Fetch(context.Background(), dest))
 
-	// marketplace.json should be present
-	data, err := os.ReadFile(filepath.Join(dest, "marketplace.json"))
+	// Manifest should be at the well-known path
+	data, err := os.ReadFile(filepath.Join(dest, ".claude-plugin/marketplace.json"))
 	require.NoError(t, err)
 	assert.Contains(t, string(data), "p1")
 
-	// p1's plugin.json should be mirrored
-	pdata, err := os.ReadFile(filepath.Join(dest, "plugins/p1/plugin.json"))
+	// p1's plugin.json should be mirrored under .claude-plugin/
+	pdata, err := os.ReadFile(filepath.Join(dest, ".claude-plugin/plugins/p1/plugin.json"))
 	require.NoError(t, err)
 	assert.Contains(t, string(pdata), "p1")
 }
@@ -71,7 +76,7 @@ func TestHTTPSource_Fetch_AtomicRefresh(t *testing.T) {
 
 	var callCount int32
 	atomic.StoreInt32(&callCount, 0)
-	mux.HandleFunc("/marketplace.json", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/.claude-plugin/marketplace.json", func(w http.ResponseWriter, r *http.Request) {
 		n := atomic.AddInt32(&callCount, 1)
 		var plugins []map[string]any
 		if n == 1 {
@@ -85,16 +90,16 @@ func TestHTTPSource_Fetch_AtomicRefresh(t *testing.T) {
 		}
 		_ = json.NewEncoder(w).Encode(map[string]any{"plugins": plugins})
 	})
-	mux.HandleFunc("/plugins/p1/plugin.json", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/.claude-plugin/plugins/p1/plugin.json", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`{"name":"p1"}`))
 	})
-	mux.HandleFunc("/plugins/p2/plugin.json", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/.claude-plugin/plugins/p2/plugin.json", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`{"name":"p2"}`))
 	})
 	up := httptest.NewServer(mux)
 	defer up.Close()
 
-	spec := config.Source{Name: "h", Type: "http", URL: up.URL + "/marketplace.json", Enabled: true}
+	spec := config.Source{Name: "h", Type: "http", URL: up.URL + "/", Enabled: true}
 	src, err := NewHTTPSource(spec)
 	require.NoError(t, err)
 
@@ -102,17 +107,17 @@ func TestHTTPSource_Fetch_AtomicRefresh(t *testing.T) {
 
 	// First fetch: marketplace contains p1.
 	require.NoError(t, src.Fetch(context.Background(), dest))
-	_, err = os.Stat(filepath.Join(dest, "plugins/p1/plugin.json"))
+	_, err = os.Stat(filepath.Join(dest, ".claude-plugin/plugins/p1/plugin.json"))
 	require.NoError(t, err, "p1/plugin.json should exist after first fetch")
-	_, err = os.Stat(filepath.Join(dest, "plugins/p2/plugin.json"))
+	_, err = os.Stat(filepath.Join(dest, ".claude-plugin/plugins/p2/plugin.json"))
 	assert.True(t, os.IsNotExist(err), "p2/plugin.json should NOT exist after first fetch")
 
 	// Second fetch: marketplace now contains p2 only. The implementation must
 	// NOT leave p1's files behind.
 	require.NoError(t, src.Fetch(context.Background(), dest))
-	_, err = os.Stat(filepath.Join(dest, "plugins/p2/plugin.json"))
+	_, err = os.Stat(filepath.Join(dest, ".claude-plugin/plugins/p2/plugin.json"))
 	require.NoError(t, err, "p2/plugin.json should exist after second fetch")
-	_, err = os.Stat(filepath.Join(dest, "plugins/p1/plugin.json"))
+	_, err = os.Stat(filepath.Join(dest, ".claude-plugin/plugins/p1/plugin.json"))
 	assert.True(t, os.IsNotExist(err), "p1/plugin.json should have been removed by atomic refresh; got err=%v", err)
 
 	// The .partial staging dir must not leak.
@@ -125,7 +130,7 @@ func TestHTTPSource_Fetch_AtomicRefresh(t *testing.T) {
 // "/plugin.json" a second time.
 func TestHTTPSource_Fetch_PluginWithFilePath(t *testing.T) {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/marketplace.json", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/.claude-plugin/marketplace.json", func(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"plugins": []map[string]any{
 				{"name": "p1", "source": "./plugins/p1/plugin.json"},
@@ -133,17 +138,17 @@ func TestHTTPSource_Fetch_PluginWithFilePath(t *testing.T) {
 		})
 	})
 	// Real manifest file path that the upstream serves.
-	mux.HandleFunc("/plugins/p1/plugin.json", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/.claude-plugin/plugins/p1/plugin.json", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`{"name":"p1"}`))
 	})
 	// If the implementation double-appends, it will hit this path with a 404.
-	mux.HandleFunc("/plugins/p1/plugin.json/plugin.json", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/.claude-plugin/plugins/p1/plugin.json/plugin.json", func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "should not be requested", http.StatusNotFound)
 	})
 	up := httptest.NewServer(mux)
 	defer up.Close()
 
-	spec := config.Source{Name: "h", Type: "http", URL: up.URL + "/marketplace.json", Enabled: true}
+	spec := config.Source{Name: "h", Type: "http", URL: up.URL + "/", Enabled: true}
 	src, err := NewHTTPSource(spec)
 	require.NoError(t, err)
 
@@ -151,7 +156,7 @@ func TestHTTPSource_Fetch_PluginWithFilePath(t *testing.T) {
 	require.NoError(t, src.Fetch(context.Background(), dest))
 
 	// The manifest should be saved at the same path the upstream served it from.
-	pdata, err := os.ReadFile(filepath.Join(dest, "plugins/p1/plugin.json"))
+	pdata, err := os.ReadFile(filepath.Join(dest, ".claude-plugin/plugins/p1/plugin.json"))
 	require.NoError(t, err)
 	assert.Contains(t, string(pdata), "p1")
 
@@ -159,7 +164,7 @@ func TestHTTPSource_Fetch_PluginWithFilePath(t *testing.T) {
 	// is a regular file, so the doubled path can never be created — but we
 	// verify that by checking the stat error, accepting either IsNotExist or
 	// "not a directory" from the OS.)
-	doublePath := filepath.Join(dest, "plugins/p1/plugin.json/plugin.json")
+	doublePath := filepath.Join(dest, ".claude-plugin/plugins/p1/plugin.json/plugin.json")
 	_, err = os.Stat(doublePath)
 	assert.Error(t, err, "double-suffixed path should not exist as a real file")
 }
@@ -171,7 +176,7 @@ func TestHTTPSource_Fetch_PluginWithTraversal(t *testing.T) {
 	mux := http.NewServeMux()
 	// Marketplace lives at a nested path so "../escape" from its directory
 	// resolves to a sibling directory above it.
-	mux.HandleFunc("/marketplace/sub/marketplace.json", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/marketplace/sub/.claude-plugin/marketplace.json", func(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"plugins": []map[string]any{
 				{"name": "evil", "source": "../escape"},
@@ -181,7 +186,7 @@ func TestHTTPSource_Fetch_PluginWithTraversal(t *testing.T) {
 	up := httptest.NewServer(mux)
 	defer up.Close()
 
-	spec := config.Source{Name: "h", Type: "http", URL: up.URL + "/marketplace/sub/marketplace.json", Enabled: true}
+	spec := config.Source{Name: "h", Type: "http", URL: up.URL + "/marketplace/sub/", Enabled: true}
 	src, err := NewHTTPSource(spec)
 	require.NoError(t, err)
 
