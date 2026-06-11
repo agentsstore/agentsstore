@@ -1,6 +1,7 @@
 package source
 
 import (
+	"regexp"
 	"strings"
 
 	"github.com/go-git/go-git/v5/plumbing"
@@ -41,4 +42,35 @@ func looksLikeTag(s string) bool {
 	// Common tag patterns: "v1.0.0", "1.0.0", "release-2024.01"
 	// Be conservative — if there's a dot, treat as tag. Otherwise branch.
 	return strings.Contains(s, ".")
+}
+
+// sshGitURLRe matches SSH-style git URLs of the form:
+//   git@github.com:owner/repo.git
+//   git@gitlab.com:group/subgroup/repo.git
+//   user@example.com:path/to/repo.git
+var sshGitURLRe = regexp.MustCompile(`^[\w-]+@([^:]+):(.+?)/?$`)
+
+// normalizeGitURL converts SSH-style git URLs from known public hosts
+// (github.com, gitlab.com) to their public HTTPS equivalents, so the
+// aggregator server can clone without needing an SSH agent or credentials.
+//
+//	git@github.com:owner/repo.git   -> https://github.com/owner/repo.git
+//	git@gitlab.com:owner/repo.git   -> https://gitlab.com/owner/repo.git
+//	git@example.com:foo/bar.git     -> git@example.com:foo/bar.git  (unchanged, unknown host)
+//
+// Local paths (no host) and already-HTTPS URLs are returned unchanged.
+func normalizeGitURL(u string) string {
+	m := sshGitURLRe.FindStringSubmatch(u)
+	if m == nil {
+		return u
+	}
+	host, rest := m[1], m[2]
+	switch strings.ToLower(host) {
+	case "github.com", "gitlab.com", "bitbucket.org":
+		return "https://" + host + "/" + rest
+	default:
+		// Unknown host — leave as SSH; user probably has a private host
+		// configured and will need to set up an SSH key/agent themselves.
+		return u
+	}
 }

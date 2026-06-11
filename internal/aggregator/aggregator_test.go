@@ -62,6 +62,12 @@ func TestAggregate_MissingSource(t *testing.T) {
 	agg := New(s, "http://x")
 	err := agg.Refresh([]string{"nope"}, "")
 	assert.Error(t, err)
+	// The error should mention the source name AND hint at the marketplace
+	// format requirement so users get actionable feedback when they point
+	// at a repo that isn't actually a marketplace.
+	assert.Contains(t, err.Error(), "nope")
+	assert.Contains(t, err.Error(), "marketplace.json")
+	assert.Contains(t, err.Error(), "marketplace format")
 }
 
 func TestAggregate_RefreshOverrideBaseURL(t *testing.T) {

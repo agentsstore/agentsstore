@@ -28,8 +28,9 @@ func (g *GitSource) Fetch(ctx context.Context, destDir string) error {
 	if err := os.MkdirAll(destDir, 0o755); err != nil {
 		return fmt.Errorf("mkdir dest: %w", err)
 	}
+	url := normalizeGitURL(g.spec.URL)
 	opts := &git.CloneOptions{
-		URL:        g.spec.URL,
+		URL:        url,
 		RemoteName: "origin",
 		Depth:      1,
 	}

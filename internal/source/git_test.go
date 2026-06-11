@@ -59,6 +59,37 @@ func TestGitSource_Fetch(t *testing.T) {
 	assert.Contains(t, string(data), "p1")
 }
 
+func TestNormalizeGitURL(t *testing.T) {
+	cases := []struct {
+		name string
+		in   string
+		want string
+	}{
+		// Known public hosts — SSH rewritten to HTTPS so the server can
+		// clone without needing an SSH agent.
+		{"github ssh", "git@github.com:owner/repo.git", "https://github.com/owner/repo.git"},
+		{"github ssh no .git", "git@github.com:owner/repo", "https://github.com/owner/repo"},
+		{"gitlab ssh", "git@gitlab.com:group/sub/repo.git", "https://gitlab.com/group/sub/repo.git"},
+		{"bitbucket ssh", "git@bitbucket.org:owner/repo.git", "https://bitbucket.org/owner/repo.git"},
+		// Already HTTPS — unchanged
+		{"https github", "https://github.com/owner/repo.git", "https://github.com/owner/repo.git"},
+		{"https gitlab", "https://gitlab.com/owner/repo.git", "https://gitlab.com/owner/repo.git"},
+		// Local / file paths — unchanged (no host part to rewrite)
+		{"absolute path", "/var/repos/foo.git", "/var/repos/foo.git"},
+		{"file scheme", "file:///var/repos/foo.git", "file:///var/repos/foo.git"},
+		// Unknown SSH host — unchanged. The user has a private host;
+		// they need to set up their own SSH key/agent.
+		{"unknown ssh host", "git@git.internal.example.com:team/repo.git", "git@git.internal.example.com:team/repo.git"},
+		// Different username on the SSH side
+		{"custom ssh user", "deploy@github.com:owner/repo.git", "https://github.com/owner/repo.git"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, normalizeGitURL(tc.in))
+		})
+	}
+}
+
 func TestRefFromString(t *testing.T) {
 	cases := []struct {
 		in   string
