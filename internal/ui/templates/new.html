@@ -1,17 +1,49 @@
 {{define "new_body"}}
-<h2>Add source</h2>
-<form method="post" action="/admin/sources/new" onsubmit="return submitNew(event)">
-<label>Name <input name="name" required pattern="[a-z0-9][a-z0-9-]*"></label>
-<label>Type
-<select name="type">
-<option value="git">git</option>
-<option value="http">http</option>
-</select></label>
-<label>URL <input name="url" required></label>
-<label>Ref (git only) <input name="ref"></label>
-<label><input type="checkbox" name="enabled" checked> Enabled</label>
-<button type="submit">Save</button>
-<a href="/admin/">Cancel</a>
+<h2>添加源</h2>
+<p class="muted">配置一个新的插件市场源,保存后需要点击「刷新」拉取内容。</p>
+<form onsubmit="return submitNew(event)">
+<label>
+  名称(英文标识)
+  <input name="name" required pattern="[a-z0-9][a-z0-9-]{0,62}" placeholder="如:team-internal"
+    title="小写字母、数字、连字符,1-63 字符;将作为 URL 路径段使用,保存后不可修改">
+  <span class="hint">小写字母 / 数字 / 连字符(<code>a-z</code>、<code>0-9</code>、<code>-</code>),以字母或数字开头,1–63 字符。会出现在 <code>/plugins/{名称}/...</code> 路径中,<strong>保存后不可修改</strong>。</span>
+</label>
+<label>
+  类型
+  <select name="type" id="type-select" onchange="updateUrlHint()">
+  <option value="git">git — Git 仓库</option>
+  <option value="http">http — HTTP 端点</option>
+  </select>
+  <span class="hint">
+    <strong>git</strong>:从 Git 仓库浅克隆,自动读取仓库根目录的 <code>marketplace.json</code>。
+    <strong>http</strong>:从 URL 拉取 <code>marketplace.json</code> 及插件文件,适合已部署的市场服务。
+  </span>
+</label>
+<label>
+  地址(URL)
+  <input name="url" required placeholder="https://github.com/owner/repo.git"
+    title="git 仓库地址或 marketplace.json 的 HTTP URL">
+  <span class="hint" id="url-hint">
+    <strong>git 类型</strong>:Git 仓库地址,支持 <code>https://</code>、<code>git://</code>、<code>ssh://</code> 或本地 <code>file://</code> 路径。
+    <br>
+    <strong>http 类型</strong>:指向 <code>marketplace.json</code> 的完整 URL,例如 <code>https://internal.example.com/marketplace.json</code>。
+  </span>
+</label>
+<label>
+  Ref(git 专用,可空)
+  <input name="ref" placeholder="如:main、v1.0.0、refs/tags/release-2024"
+    title="分支名、tag 或 commit SHA;留空使用默认分支">
+  <span class="hint">分支名(如 <code>main</code>、<code>master</code>)、tag(如 <code>v1.0.0</code>,会自动识别为 <code>refs/tags/v1.0.0</code>)、或完整 ref 名。留空将使用默认分支。仅 <strong>git 类型</strong> 有效。</span>
+</label>
+<label class="checkbox-row">
+  <input type="checkbox" name="enabled" checked> 启用此源
+</label>
+<span class="hint">禁用的源不会参与刷新和聚合,但本地缓存会保留。</span>
+
+<div class="form-actions">
+  <button type="submit" class="btn">保存</button>
+  <a href="/admin/" class="cancel-link">取消</a>
+</div>
 </form>
 {{end}}
 {{template "new_body" .}}

@@ -1,17 +1,41 @@
 {{define "edit_body"}}
-<h2>Edit source: {{.Source.Name}}</h2>
+<h2>编辑源:{{.Source.Name}}</h2>
+<p class="muted">修改源的配置后,需要点击列表中的「刷新」重新拉取内容。</p>
 <form onsubmit="return submitEdit(event, '{{.Source.Name}}')">
-<label>Name <input name="name" value="{{.Source.Name}}" readonly></label>
-<label>Type
-<select name="type">
-<option value="git" {{if eq .Source.Type "git"}}selected{{end}}>git</option>
-<option value="http" {{if eq .Source.Type "http"}}selected{{end}}>http</option>
-</select></label>
-<label>URL <input name="url" value="{{.Source.URL}}" required></label>
-<label>Ref (git only) <input name="ref" value="{{.Source.Ref}}"></label>
-<label><input type="checkbox" name="enabled" {{if .Source.Enabled}}checked{{end}}> Enabled</label>
-<button type="submit">Save</button>
-<a href="/admin/">Cancel</a>
+<label>
+  名称(英文标识)
+  <input name="name" value="{{.Source.Name}}" readonly>
+  <span class="hint">名称是源的 URL 路径标识,不能修改。如需变更请先删除再添加。</span>
+</label>
+<label>
+  类型
+  <select name="type">
+  <option value="git" {{if eq .Source.Type "git"}}selected{{end}}>git — Git 仓库</option>
+  <option value="http" {{if eq .Source.Type "http"}}selected{{end}}>http — HTTP 端点</option>
+  </select>
+  <span class="hint">
+    <strong>git</strong>:从 Git 仓库浅克隆。 <strong>http</strong>:从 URL 拉取 <code>marketplace.json</code>。
+  </span>
+</label>
+<label>
+  地址(URL)
+  <input name="url" value="{{.Source.URL}}" required>
+  <span class="hint">git 类型填 Git 仓库地址;http 类型填指向 <code>marketplace.json</code> 的完整 URL。</span>
+</label>
+<label>
+  Ref(git 专用,可空)
+  <input name="ref" value="{{.Source.Ref}}" placeholder="如:main、v1.0.0">
+  <span class="hint">分支名、tag(如 <code>v1.0.0</code>)、或完整 ref 名;留空使用默认分支。仅 git 类型有效。</span>
+</label>
+<label class="checkbox-row">
+  <input type="checkbox" name="enabled" {{if .Source.Enabled}}checked{{end}}> 启用此源
+</label>
+<span class="hint">禁用的源不会参与刷新和聚合,但本地缓存会保留。</span>
+
+<div class="form-actions">
+  <button type="submit" class="btn">保存</button>
+  <a href="/admin/" class="cancel-link">取消</a>
+</div>
 </form>
 {{end}}
 {{template "edit_body" .}}

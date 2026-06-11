@@ -1,5 +1,6 @@
 {{define "preview_body"}}
-<h2>Aggregated marketplace.json</h2>
+<h2>聚合后的 marketplace.json</h2>
+<p class="muted">这是所有启用源合并后、供 Claude Code 拉取的清单。每个插件的 <code>source</code> 已被改写为指向本服务的 <code>/plugins/{源名}/...</code> 路径。</p>
 <pre>{{.Aggregated}}</pre>
 {{end}}
 {{template "preview_body" .}}

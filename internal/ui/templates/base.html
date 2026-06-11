@@ -1,5 +1,5 @@
 {{define "base"}}<!doctype html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
 <meta charset="utf-8">
 <title>{{.Title}} · AgentsStore</title>
@@ -7,10 +7,10 @@
 </head>
 <body>
 <header>
-<h1><a href="/admin/">AgentsStore</a></h1>
+<h1><a href="/admin/">AgentsStore 插件市场聚合</a></h1>
 <nav>
-<a href="/admin/">Sources</a>
-<a href="/admin/preview">Preview</a>
+<a href="/admin/">源列表</a>
+<a href="/admin/preview">聚合预览</a>
 </nav>
 </header>
 <main>{{if eq .Page "index.html"}}{{template "index_body" .}}{{end}}{{if eq .Page "new.html"}}{{template "new_body" .}}{{end}}{{if eq .Page "edit.html"}}{{template "edit_body" .}}{{end}}{{if eq .Page "preview.html"}}{{template "preview_body" .}}{{end}}</main>

@@ -32,7 +32,7 @@ func TestUI_Index(t *testing.T) {
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Contains(t, w.Body.String(), "Sources")
+	assert.Contains(t, w.Body.String(), "源列表")
 }
 
 func TestUI_AllPages(t *testing.T) {
@@ -51,9 +51,9 @@ func TestUI_AllPages(t *testing.T) {
 	cases := []struct {
 		path, contains string
 	}{
-		{"/admin/", "No sources yet"},
-		{"/admin/sources/new", "Add source"},
-		{"/admin/preview", "Aggregated marketplace.json"},
+		{"/admin/", "暂无源"},
+		{"/admin/sources/new", "添加源"},
+		{"/admin/preview", "聚合后的 marketplace.json"},
 		{"/static/style.css", "box-sizing"},
 		{"/static/app.js", "refreshOne"},
 	}
