@@ -86,6 +86,25 @@ func (a *Admin) DeleteSource(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
+// requestBaseURL derives the base URL from the incoming request. It prefers
+// X-Forwarded-Host (and X-Forwarded-Proto) when the server sits behind a
+// proxy, and otherwise uses c.Request.Host. The scheme defaults to "http"
+// and is upgraded to "https" when the request arrived over TLS.
+func requestBaseURL(c *gin.Context) string {
+	if host := c.GetHeader("X-Forwarded-Host"); host != "" {
+		scheme := c.GetHeader("X-Forwarded-Proto")
+		if scheme == "" {
+			scheme = "http"
+		}
+		return scheme + "://" + host
+	}
+	scheme := "http"
+	if c.Request.TLS != nil {
+		scheme = "https"
+	}
+	return scheme + "://" + c.Request.Host
+}
+
 func (a *Admin) RefreshOne(c *gin.Context) {
 	name := c.Param("name")
 	spec, err := a.Server.Manager.Get(name)
@@ -113,7 +132,7 @@ func (a *Admin) RefreshOne(c *gin.Context) {
 			names = append(names, s.Name)
 		}
 	}
-	if err := a.Server.Aggregator.Refresh(names); err != nil {
+	if err := a.Server.Aggregator.Refresh(names, requestBaseURL(c)); err != nil {
 		// Don't update LastRefresh; record the aggregator failure
 		a.Server.Manager.SetState(name, func(st *source.State) {
 			st.LastError = "aggregator: " + err.Error()
@@ -161,7 +180,7 @@ func (a *Admin) RefreshAll(c *gin.Context) {
 		ok = append(ok, s.Name)
 	}
 	names := ok
-	if err := a.Server.Aggregator.Refresh(names); err != nil {
+	if err := a.Server.Aggregator.Refresh(names, requestBaseURL(c)); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

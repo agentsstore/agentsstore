@@ -39,7 +39,7 @@ func TestAggregate_Merge(t *testing.T) {
 	})
 
 	agg := New(s, "http://example.test")
-	require.NoError(t, agg.Refresh([]string{"a", "b"}))
+	require.NoError(t, agg.Refresh([]string{"a", "b"}, ""))
 
 	got, err := os.ReadFile(filepath.Join(s.AggregatedDir(), "marketplace.json"))
 	require.NoError(t, err)
@@ -60,8 +60,35 @@ func TestAggregate_MissingSource(t *testing.T) {
 	dir := t.TempDir()
 	s := store.New(dir)
 	agg := New(s, "http://x")
-	err := agg.Refresh([]string{"nope"})
+	err := agg.Refresh([]string{"nope"}, "")
 	assert.Error(t, err)
+}
+
+func TestAggregate_RefreshOverrideBaseURL(t *testing.T) {
+	// When the caller passes a non-empty baseURL, the per-refresh value
+	// must override the constructor's baseURL.
+	dir := t.TempDir()
+	s := store.New(dir)
+	require.NoError(t, s.EnsureSourceDir("a"))
+
+	writeJSON(t, filepath.Join(dir, "sources/a/marketplace.json"), map[string]any{
+		"name": "a",
+		"plugins": []map[string]any{
+			{"name": "p1", "source": "./plugins/p1"},
+		},
+	})
+
+	agg := New(s, "http://constructor.test")
+	require.NoError(t, agg.Refresh([]string{"a"}, "http://override.test"))
+
+	got, err := os.ReadFile(filepath.Join(s.AggregatedDir(), "marketplace.json"))
+	require.NoError(t, err)
+	var m map[string]any
+	require.NoError(t, json.Unmarshal(got, &m))
+	plugins := m["plugins"].([]any)
+	require.Len(t, plugins, 1)
+	p := plugins[0].(map[string]any)
+	assert.Equal(t, "http://override.test/plugins/a/plugins/p1", p["source"])
 }
 
 func TestRewriteURL(t *testing.T) {

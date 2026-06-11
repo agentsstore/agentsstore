@@ -31,7 +31,16 @@ type manifest struct {
 	Plugins []plugin `json:"plugins"`
 }
 
-func (a *Aggregator) Refresh(sourceNames []string) error {
+// Refresh rewrites the per-source marketplace.json files into a single
+// aggregated marketplace.json. The optional baseURL parameter overrides the
+// constructor's baseURL for this refresh, allowing per-request base URLs
+// (e.g., derived from the request Host). If baseURL is empty, the
+// constructor's baseURL is used.
+func (a *Aggregator) Refresh(sourceNames []string, baseURL string) error {
+	effective := a.baseURL
+	if baseURL != "" {
+		effective = strings.TrimRight(baseURL, "/")
+	}
 	merged := manifest{Plugins: []plugin{}}
 	for _, name := range sourceNames {
 		data, err := a.store.ReadFile(name, "marketplace.json")
@@ -43,7 +52,7 @@ func (a *Aggregator) Refresh(sourceNames []string) error {
 			return fmt.Errorf("source %s: parse: %w", name, err)
 		}
 		for _, p := range m.Plugins {
-			p.Source = rewriteURL(a.baseURL, name, p.Source)
+			p.Source = rewriteURL(effective, name, p.Source)
 			merged.Plugins = append(merged.Plugins, p)
 		}
 	}
