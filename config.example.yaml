@@ -1,0 +1,6 @@
+server:
+  listen: ":8080"
+  data_dir: "./data"
+  base_url: ""
+
+sources: []
