@@ -1,0 +1,31 @@
+{{define "index_body"}}
+<h2>Sources</h2>
+<p><a class="btn" href="/admin/sources/new">+ Add source</a>
+   <button class="btn" onclick="refreshAll()">Refresh all</button></p>
+<table>
+<thead><tr><th>Name</th><th>Type</th><th>URL</th><th>Enabled</th><th>Status</th><th>Actions</th></tr></thead>
+<tbody>
+{{range .Sources}}
+<tr>
+<td>{{.Name}}</td>
+<td>{{.Type}}</td>
+<td>{{.URL}}</td>
+<td>{{if .Enabled}}yes{{else}}no{{end}}</td>
+<td>
+{{if .LastError}}<span class="err">err: {{.LastError}}</span>
+{{else if .LastRefresh}}ok ({{.LastRefresh}})
+{{else}}never{{end}}
+</td>
+<td>
+<button onclick="refreshOne('{{.Name}}')">Refresh</button>
+<a href="/admin/sources/{{.Name}}/edit">Edit</a>
+<button onclick="deleteOne('{{.Name}}')">Delete</button>
+</td>
+</tr>
+{{else}}
+<tr><td colspan="6">No sources yet.</td></tr>
+{{end}}
+</tbody>
+</table>
+{{end}}
+{{template "index_body" .}}

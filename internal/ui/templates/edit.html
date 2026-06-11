@@ -1,0 +1,17 @@
+{{define "edit_body"}}
+<h2>Edit source: {{.Source.Name}}</h2>
+<form onsubmit="return submitEdit(event, '{{.Source.Name}}')">
+<label>Name <input name="name" value="{{.Source.Name}}" readonly></label>
+<label>Type
+<select name="type">
+<option value="git" {{if eq .Source.Type "git"}}selected{{end}}>git</option>
+<option value="http" {{if eq .Source.Type "http"}}selected{{end}}>http</option>
+</select></label>
+<label>URL <input name="url" value="{{.Source.URL}}" required></label>
+<label>Ref (git only) <input name="ref" value="{{.Source.Ref}}"></label>
+<label><input type="checkbox" name="enabled" {{if .Source.Enabled}}checked{{end}}> Enabled</label>
+<button type="submit">Save</button>
+<a href="/admin/">Cancel</a>
+</form>
+{{end}}
+{{template "edit_body" .}}

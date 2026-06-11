@@ -1,0 +1,19 @@
+{{define "base"}}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>{{.Title}} · AgentsStore</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header>
+<h1><a href="/admin/">AgentsStore</a></h1>
+<nav>
+<a href="/admin/">Sources</a>
+<a href="/admin/preview">Preview</a>
+</nav>
+</header>
+<main>{{if eq .Page "index.html"}}{{template "index_body" .}}{{end}}{{if eq .Page "new.html"}}{{template "new_body" .}}{{end}}{{if eq .Page "edit.html"}}{{template "edit_body" .}}{{end}}{{if eq .Page "preview.html"}}{{template "preview_body" .}}{{end}}</main>
+<script src="/static/app.js"></script>
+</body>
+</html>{{end}}

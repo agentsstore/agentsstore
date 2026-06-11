@@ -1,0 +1,17 @@
+{{define "new_body"}}
+<h2>Add source</h2>
+<form method="post" action="/admin/sources/new" onsubmit="return submitNew(event)">
+<label>Name <input name="name" required pattern="[a-z0-9][a-z0-9-]*"></label>
+<label>Type
+<select name="type">
+<option value="git">git</option>
+<option value="http">http</option>
+</select></label>
+<label>URL <input name="url" required></label>
+<label>Ref (git only) <input name="ref"></label>
+<label><input type="checkbox" name="enabled" checked> Enabled</label>
+<button type="submit">Save</button>
+<a href="/admin/">Cancel</a>
+</form>
+{{end}}
+{{template "new_body" .}}
