@@ -81,3 +81,30 @@ func TestPluginFile_NotFound(t *testing.T) {
 	r.ServeHTTP(w, req)
 	assert.Equal(t, http.StatusNotFound, w.Code)
 }
+
+func TestPluginFile_Directory(t *testing.T) {
+	r, s := newTestServer(t)
+	// Create a directory under the source
+	require.NoError(t, os.MkdirAll(filepath.Join(s.SourceDir("team"), "plugins", "p2"), 0o755))
+
+	req := httptest.NewRequest(http.MethodGet, "/plugins/team/plugins/p2/", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusNotFound, w.Code)
+}
+
+func TestPluginFile_Symlink(t *testing.T) {
+	r, s := newTestServer(t)
+	// Create a symlink inside the source pointing outside it
+	target := filepath.Join(t.TempDir(), "secret.txt")
+	require.NoError(t, os.WriteFile(target, []byte("secret"), 0o644))
+	link := filepath.Join(s.SourceDir("team"), "plugins", "p1", "leak.txt")
+	require.NoError(t, os.Symlink(target, link))
+
+	req := httptest.NewRequest(http.MethodGet, "/plugins/team/plugins/p1/leak.txt", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	// Should be rejected as 400 (not 200 with the secret content)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.NotContains(t, w.Body.String(), "secret")
+}
