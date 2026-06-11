@@ -1,0 +1,22 @@
+# Build artifacts
+/agentsstore
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Runtime configuration (created on first run; may contain environment-specific values)
+/config.yaml
+
+# Runtime data (mirrored sources + aggregated output)
+/data/
+/marketplace.json
+/plugins/
+
+# Editor / OS
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
